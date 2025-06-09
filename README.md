@@ -69,17 +69,36 @@
 
 ## 运行项目
 
-确保已安装Node.js环境，然后执行以下命令：
+### 环境要求
+
+- Node.js: v16.0.0 或更高版本
+- pnpm: v7.0.0 或更高版本
+- Vue: v3.3.x
+- Vite: v4.x
+
+### 安装与运行
+
+本项目使用 pnpm 作为包管理工具，请先安装 pnpm：
+
+```bash
+# 全局安装 pnpm
+npm install -g pnpm
+
+# 检查版本
+pnpm -v
+```
+
+然后执行以下命令运行项目：
 
 ```bash
 # 安装依赖
-npm install
+pnpm install
 
 # 开发模式运行
-npm run dev
+pnpm dev
 
 # 构建生产版本
-npm run build
+pnpm build
 ```
 
 ## 项目亮点
