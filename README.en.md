@@ -22,6 +22,8 @@ A mobile music player application developed based on Vue3, providing functions s
 - 🎬 **MV Playback**: Support for multiple resolutions (480p/720p/1080p) switching
 - 💿 **Album Details**: Browse album information, song list and one-click playback function
 - 👨‍🎤 **Artist Page**: Artist rankings, artist detail views
+- 📜 **Playback History**: Automatically record local music and MV playback history, support replay
+- 📱 **WeChat Environment Detection**: Optimize the browsing experience within WeChat, provide prompts to open in browser
 - 🔍 **Search Function**: Support searching for songs, playlists, artists, etc.
 - 💬 **Comment System**: View comments on songs, playlists, MVs
 

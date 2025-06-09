@@ -1,5 +1,18 @@
 import { defineStore } from 'pinia';
 
+// 从本地存储获取播放历史
+const getLocalPlayHistory = () => {
+  const history = localStorage.getItem('playHistory');
+  return history ? JSON.parse(history) : [];
+};
+
+// 保存播放历史到本地存储
+const savePlayHistory = (history) => {
+  // 最多保存50条历史记录
+  const limitedHistory = history.slice(0, 50);
+  localStorage.setItem('playHistory', JSON.stringify(limitedHistory));
+};
+
 // 播放器状态管理
 export const usePlayerStore = defineStore('player', {
   state: () => ({
@@ -24,6 +37,8 @@ export const usePlayerStore = defineStore('player', {
     currentMv: null,        // 当前播放的MV信息
     mvUrl: '',              // MV播放地址
     mvResolution: 1080,     // MV分辨率
+    // 播放历史
+    playHistory: getLocalPlayHistory(),
   }),
 
   getters: {
@@ -54,6 +69,32 @@ export const usePlayerStore = defineStore('player', {
       
       this.currentSong = song;
       this.playing = true;
+      
+      // 添加到播放历史
+      this.addToPlayHistory(song);
+    },
+    
+    // 添加到播放历史
+    addToPlayHistory(song) {
+      if (!song || !song.id) return;
+      
+      // 如果已经在历史中，先移除
+      const existIndex = this.playHistory.findIndex(item => item.id === song.id);
+      if (existIndex > -1) {
+        this.playHistory.splice(existIndex, 1);
+      }
+      
+      // 添加到历史的最前面
+      const historyItem = {
+        ...song,
+        type: 'music', // 显式设置类型为音乐
+        playedAt: new Date().getTime() // 添加播放时间
+      };
+      
+      this.playHistory.unshift(historyItem);
+      
+      // 保存到本地存储
+      savePlayHistory(this.playHistory);
     },
     
     // 播放/暂停切换
@@ -118,6 +159,20 @@ export const usePlayerStore = defineStore('player', {
       this.playing = false;
     },
     
+    // 清空歌曲播放历史
+    clearSongHistory() {
+      // 保留MV类型的历史记录，移除歌曲类型的记录
+      this.playHistory = this.playHistory.filter(item => item.type === 'mv');
+      savePlayHistory(this.playHistory);
+    },
+    
+    // 清空MV播放历史
+    clearMvHistory() {
+      // 保留歌曲类型的历史记录，移除MV类型的记录
+      this.playHistory = this.playHistory.filter(item => !item.type || item.type !== 'mv');
+      savePlayHistory(this.playHistory);
+    },
+    
     // MV相关方法
     // 播放MV
     playMv(mv, url, resolution = 1080) {
@@ -132,6 +187,34 @@ export const usePlayerStore = defineStore('player', {
       this.isMvPlaying = true;
       this.playing = true;
       this.showPlayerPage = true;
+      
+      // 添加到MV播放历史
+      this.addToMvHistory(mv, url, resolution);
+    },
+    
+    // 添加到MV播放历史
+    addToMvHistory(mv, url, resolution) {
+      if (!mv || !mv.id) return;
+      
+      // 如果已经在历史中，先移除
+      const existIndex = this.playHistory.findIndex(item => item.id === mv.id && item.type === 'mv');
+      if (existIndex > -1) {
+        this.playHistory.splice(existIndex, 1);
+      }
+      
+      // 添加到历史的最前面
+      const historyItem = {
+        ...mv,
+        type: 'mv',
+        url: url,
+        resolution: resolution,
+        playedAt: new Date().getTime() // 添加播放时间
+      };
+      
+      this.playHistory.unshift(historyItem);
+      
+      // 保存到本地存储
+      savePlayHistory(this.playHistory);
     },
     
     // 切换MV分辨率
