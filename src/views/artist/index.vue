@@ -187,7 +187,7 @@ const playSong = (song) => {
 // 跳转到专辑详情
 const goToAlbumDetail = (album) => {
   router.push({
-    path: '/album',
+    path: '/album-details',
     query: {
       id: album.id
     }
@@ -197,7 +197,7 @@ const goToAlbumDetail = (album) => {
 // 跳转到MV详情
 const goToMVDetail = (mv) => {
   router.push({
-    path: '/mv',
+    path: '/mv-detail',
     query: {
       id: mv.id
     }
