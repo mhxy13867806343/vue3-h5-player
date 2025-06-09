@@ -1,0 +1,47 @@
+// 全局变量
+$primary-color: #2979ff;
+$danger-color: #ff3d00;
+$success-color: #00c853;
+$warning-color: #ffab00;
+$info-color: #40c4ff;
+$text-color: #333333;
+$text-color-light: #666666;  // 用于歌单和搜索页面
+$light-text-color: #666666;  // 保留原有变量为兼容
+$disabled-color: #c0c0c0;
+$border-color: #e0e0e0;
+$border-color-light: #f0f0f0; // 更浅色的边框
+$bg-color: #f5f5f5;
+
+// 字体大小
+$font-size-xs: 10px;
+$font-size-sm: 12px;
+$font-size-md: 14px;
+$font-size-lg: 16px;
+$font-size-xl: 18px;
+
+// 间距
+$spacing-xs: 4px;
+$spacing-sm: 8px;
+$spacing-md: 12px;
+$spacing-lg: 16px;
+$spacing-xl: 24px;
+
+// 圆角
+$border-radius-sm: 2px;
+$border-radius-md: 4px;
+$border-radius-lg: 8px;
+
+// 阴影
+$box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+// 媒体查询断点
+$breakpoint-sm: 576px;
+$breakpoint-md: 768px;
+$breakpoint-lg: 992px;
+$breakpoint-xl: 1200px;
+
+// 移动端安全区域
+$safe-area-inset-top: env(safe-area-inset-top);
+$safe-area-inset-right: env(safe-area-inset-right);
+$safe-area-inset-bottom: env(safe-area-inset-bottom);
+$safe-area-inset-left: env(safe-area-inset-left);

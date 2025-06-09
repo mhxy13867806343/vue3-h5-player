@@ -1,0 +1,92 @@
+// Flex布局
+@mixin flex($direction: row, $justify: flex-start, $align: flex-start, $wrap: nowrap) {
+  display: flex;
+  flex-direction: $direction;
+  justify-content: $justify;
+  align-items: $align;
+  flex-wrap: $wrap;
+}
+
+// 单行文本省略
+@mixin text-ellipsis {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// 多行文本省略
+@mixin multi-ellipsis($lines: 2) {
+  display: -webkit-box;
+  -webkit-line-clamp: $lines;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+// 1px边框
+@mixin hairline($direction: all, $color: $border-color, $radius: 0) {
+  position: relative;
+  &::after {
+    content: '';
+    position: absolute;
+    
+    @if $direction == all {
+      left: 0;
+      top: 0;
+      width: 200%;
+      height: 200%;
+      transform: scale(0.5);
+      transform-origin: 0 0;
+      border: 1px solid $color;
+      @if $radius > 0 {
+        border-radius: $radius * 2;
+      }
+    } @else if $direction == top {
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 1px;
+      transform: scaleY(0.5);
+      transform-origin: 0 0;
+      background-color: $color;
+    } @else if $direction == right {
+      right: 0;
+      top: 0;
+      width: 1px;
+      height: 100%;
+      transform: scaleX(0.5);
+      transform-origin: 100% 0;
+      background-color: $color;
+    } @else if $direction == bottom {
+      left: 0;
+      bottom: 0;
+      width: 100%;
+      height: 1px;
+      transform: scaleY(0.5);
+      transform-origin: 0 100%;
+      background-color: $color;
+    } @else if $direction == left {
+      left: 0;
+      top: 0;
+      width: 1px;
+      height: 100%;
+      transform: scaleX(0.5);
+      transform-origin: 0 0;
+      background-color: $color;
+    }
+  }
+}
+
+// 适配vw
+@function vw($px) {
+  @return ($px / 375) * 100vw;
+}
+
+// 适配vh
+@function vh($px) {
+  @return ($px / 812) * 100vh;
+}
+
+// 渐变背景
+@mixin gradient-bg($direction: to right, $start-color: #4facfe, $end-color: #00f2fe) {
+  background-image: linear-gradient($direction, $start-color, $end-color);
+}
