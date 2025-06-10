@@ -114,6 +114,15 @@ const routes = [
     },
   },
   {
+    path:'/song-details',
+    name:"Songsdetails",
+     component: () => import('../views/song/details.vue'),
+    meta: {
+      title: '歌曲详情',
+      keepAlive: true,
+    },
+  },
+  {
     path: '/album-details',
     name: 'AlbumDetails',
     component: () => import('../views/album/album-details.vue'),

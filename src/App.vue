@@ -53,4 +53,9 @@ watch(() => route.path, (newPath) => {
 }
 }
 
+.toggle-active {
+          color: $danger-color;
+          background-color: rgba(0, 0, 0, 0.02);
+          position: relative;
+        }
 </style>

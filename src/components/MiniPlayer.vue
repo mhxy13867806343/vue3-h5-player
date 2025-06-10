@@ -107,7 +107,7 @@
             v-for="(song, index) in currentPlaylist?.songs" 
             :key="song.id"
             class="song-item"
-            :class="{ 'active': isCurrentSong(index) }"
+            :class="{ 'toggle-active': isCurrentSong(index) }"
             @click="playSongByIndex(index)"
           >
             <div class="song-main">

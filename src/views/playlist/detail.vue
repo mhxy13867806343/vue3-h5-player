@@ -13,6 +13,8 @@ const {
   currentPlaylist,
   isActivePlaylist,
   playSongByIndex,
+    playSong,
+    isCurrentPlaying,
   isCurrentSong
 } = usePlayerSync(activePlaylistId);
 const route = useRoute();
@@ -82,6 +84,9 @@ const fetchPlaylistDetail = async () => {
     // 获取部分歌曲详情信息
     if (res.playlist.tracks && res.playlist.tracks.length > 0) {
       songs.value = res.playlist.tracks;
+      songs.value.map(item=>{
+         item.show=false
+      })
     }
     
     // 如果tracks不完整但有trackIds，则获取完整歌曲信息
@@ -100,6 +105,9 @@ const fetchPlaylistDetail = async () => {
       
       if (allSongs.length > 0) {
         songs.value = allSongs;
+        songs.value.map(item=>{
+         item.show=false
+      })
       }
     }
     
@@ -128,7 +136,8 @@ const playAll = async () => {
       artist: song.ar.map(a => a.name).join('/'),
       album: song.al.name,
       duration: song.dt,
-      picUrl: song.al.picUrl
+      picUrl: song.al.picUrl,
+      show:false
     }));
     
     // 使用playAll方法替换当前播放列表并播放新的歌单
@@ -149,24 +158,7 @@ const collectPlaylist = () => {
   showToast('收藏成功');
 };
 
-// 播放单曲
-const playSong = (song) => {
-  try {
-    const songInfo = {
-      id: song.id,
-      name: song.name,
-      artist: song.ar.map(a => a.name).join('/'),
-      album: song.al.name,
-      duration: song.dt,
-      picUrl: song.al.picUrl
-    };
-    
-    playerStore.playSong(songInfo);
-  } catch (error) {
-    console.error('播放失败:', error);
-    showToast('播放失败');
-  }
-};
+
 
 // 判断并处理返回逻辑
 const goBack = () => {
@@ -233,6 +225,27 @@ onMounted(() => {
   }
 
 });
+const songActions=[
+    { text: '详情',id:'001' },
+]
+const songDetails=ref({})
+const onSongSelect=(value)=>{
+  console.log(value)
+  if(value.id==='001'){
+     router.push({
+    path:`/song-details`,
+    query:{
+      id:songDetails.value
+    }
+              })
+  }
+
+}
+const onClickSong=(details)=>{
+  details.show=true
+  songDetails.value=details.id
+
+}
 </script>
 
 <template>
@@ -299,7 +312,7 @@ onMounted(() => {
       
       <div class="song-list">
         <div class="song-item" v-for="(song, index) in songs" :key="song.id"
-         :class="{ 'active': isCurrentSong(index) }"  @click="playSong(song)"
+         :class="{ 'toggle-active': isCurrentSong(index) }"  @click="playSong(song)"
         >
           <div class="index">{{ index + 1 }}</div>
           <div class="song-info">
@@ -310,8 +323,13 @@ onMounted(() => {
             </div>
           </div>
           <div class="song-actions">
-            <van-icon name="play-circle-o" />
-            <van-icon name="ellipsis" />
+            <van-icon  :name="isCurrentPlaying(song) ? 'pause-circle-o' : 'play-circle-o'"
+  @click.stop="playSong(song)" />
+            <van-popover v-model:show="song.show" :actions="songActions" @select="onSongSelect">
+  <template #reference>
+            <van-icon name="ellipsis" @click.stop="onClickSong(song)"/>
+  </template>
+            </van-popover>
           </div>
         </div>
       </div>
@@ -483,11 +501,7 @@ onMounted(() => {
       padding: 12px 0;
       align-items: center;
       border-bottom: 1px solid $border-color-light;
-        &.active {
-          color: $primary-color;
-          background-color: rgba(0, 0, 0, 0.02);
-          position: relative;
-        }
+
       .index {
         width: 30px;
         text-align: center;

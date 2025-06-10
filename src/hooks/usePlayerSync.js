@@ -1,5 +1,6 @@
 import { computed, watch } from 'vue';
 import { usePlayerStore } from '../store/modules/player';
+import { showToast }       from "vant";
 
 /**
  * 播放器状态同步Hook
@@ -49,11 +50,36 @@ export const usePlayerSync = (activePlaylistId) => {
       }
     }
   );
-
+// 播放单曲
+const playSong = (song) => {
+  try {
+    const songInfo = {
+      id: song.id,
+      name: song.name,
+      artist: song.ar.map(a => a.name).join('/'),
+      album: song.al.name,
+      duration: song.dt,
+      picUrl: song.al.picUrl
+    };
+    
+    playerStore.playSong(songInfo);
+  } catch (error) {
+    console.error('播放失败:', error);
+    showToast('播放失败');
+  }
+}
+// 判断歌曲是否正在播放
+const isCurrentPlaying = (song) => {
+  return playerStore.currentSong &&
+         playerStore.currentSong.id === song.id &&
+         playerStore.playing;
+};
   return {
     currentPlaylist,
     isActivePlaylist,
     playSongByIndex,
+    playSong,
+    isCurrentPlaying,
     isCurrentSong
   };
 };
