@@ -112,6 +112,9 @@ onMounted(() => {
     showWxOpenTip();
   }
 });
+const onClickRouterSetting=()=>{
+  router.push('/setting')
+}
 </script>
 
 <template>
@@ -135,11 +138,15 @@ onMounted(() => {
           :src="authorInfo.avatar"
           fit="cover"
         />
+
         <div class="author-meta">
           <div class="author-name">{{ authorInfo.nickname }}</div>
           <div class="author-desc">全栈前端开发者</div>
         </div>
       </div>
+         <div class="icon-svg">
+           <van-icon name="setting-o" @click="onClickRouterSetting" />
+         </div>
     </div>
     
     <!-- 功能快捷入口 -->
@@ -263,6 +270,7 @@ onMounted(() => {
 }
 
 .author-header {
+  display: flex;
   padding: 20px 16px;
   padding-top: 30px; /* 增加顶部内边距，确保不被导航栏遮挡 */
   background: linear-gradient(to right, #2979ff, #56ccf2);
@@ -288,6 +296,11 @@ onMounted(() => {
         opacity: 0.8;
       }
     }
+  }
+  .icon-svg{
+    flex: 1;
+        justify-content: flex-end;
+    display: flex;
   }
 }
 

@@ -131,6 +131,15 @@ const routes = [
       keepAlive: true,
     },
   },
+    {
+    path: '/setting',
+    name: 'Setting',
+    component: () => import('../views/setting/index.vue'),
+    meta: {
+      title: '设置',
+      keepAlive: true,
+    },
+  },
   {
     path: '/404',
     name: 'NotFound',
