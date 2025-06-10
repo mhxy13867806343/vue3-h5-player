@@ -107,7 +107,7 @@
             v-for="(song, index) in currentPlaylist?.songs" 
             :key="song.id"
             class="song-item"
-            :class="{ 'active': playerStore.currentIndex === index && activePlaylistId === playerStore.activePlaylistId }"
+            :class="{ 'active': isCurrentSong(index) }"
             @click="playSongByIndex(index)"
           >
             <div class="song-main">
@@ -239,6 +239,7 @@ import '@/assets/css/icon-font/iconfont.css';
 import { showToast } from 'vant';
 import { usePlayerStore } from '@/store/modules/player';
 import { useSettingsStore } from '@/store/modules/settings';
+import { usePlayerSync } from '@/hooks/usePlayerSync';
 
 const playerStore = usePlayerStore();
 const settingsStore = useSettingsStore();
@@ -257,10 +258,13 @@ const shouldShowPlayer = computed(() => {
 
 // 歌曲历史搜索相关
 const filteredHistory = ref([]);
-// 当前播放列表计算属性
-const currentPlaylist = computed(() => {
-  return playerStore.playlists.find(list => list.id === activePlaylistId.value);
-});
+// 使用播放器同步hook
+const { 
+  currentPlaylist, 
+  isActivePlaylist, 
+  playSongByIndex, 
+  isCurrentSong 
+} = usePlayerSync(activePlaylistId);
 
 // 播放列表选项
 const playlistOptions = computed(() => {
@@ -445,13 +449,7 @@ function onPlaylistChange(playlistId) {
   Toast(`已切换至播放列表: ${playerStore.playlists.find(p => p.id === playlistId)?.name}`);
 }
 
-// 通过索引播放歌曲
-function playSongByIndex(index) {
-  if (!currentPlaylist.value || !currentPlaylist.value.songs[index]) return;
-
-  const song = currentPlaylist.value.songs[index];
-  playerStore.playSong(song); // 使用更新后的playSong方法
-}
+// 使用usePlayerSync hook提供的playSongByIndex方法
 
 // 下载当前歌曲
 function downloadCurrentSong() {

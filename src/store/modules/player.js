@@ -172,18 +172,30 @@ export const usePlayerStore = defineStore('player', {
     playSong(song) {
       if (!song || !song.id) return;
       
+      // 查找歌曲所在的所有播放列表
+      const containingPlaylists = this.playlists.filter(list => 
+        list.songs.some(item => item.id === song.id)
+      );
+      
       // 获取当前活跃的播放列表
       const activePlaylist = this.playlists.find(list => list.id === this.activePlaylistId);
       if (!activePlaylist) return;
       
-      // 检查歌曲是否已在播放列表中
-      const index = activePlaylist.songs.findIndex(item => item.id === song.id);
+      // 检查歌曲是否已在当前活跃播放列表中
+      const indexInActivePlaylist = activePlaylist.songs.findIndex(item => item.id === song.id);
       
-      if (index > -1) {
-        // 如果已存在，直接播放该歌曲
-        this.currentIndex = index;
+      if (indexInActivePlaylist > -1) {
+        // 如果在当前播放列表中已存在，直接播放该歌曲
+        this.currentIndex = indexInActivePlaylist;
+      } else if (containingPlaylists.length > 0) {
+        // 如果歌曲在其他播放列表中但不在当前播放列表，切换到该播放列表
+        const targetPlaylist = containingPlaylists[0];
+        this.activePlaylistId = targetPlaylist.id;
+        this.currentIndex = targetPlaylist.songs.findIndex(item => item.id === song.id);
+        // 保存最后使用的播放列表ID到本地存储
+        localStorage.setItem(STORAGE_KEYS.LAST_PLAYLIST_ID, targetPlaylist.id);
       } else {
-        // 如果不存在，添加到播放列表
+        // 如果不存在于任何播放列表，添加到当前活跃播放列表
         activePlaylist.songs.push(song);
         this.currentIndex = activePlaylist.songs.length - 1;
         
@@ -197,6 +209,20 @@ export const usePlayerStore = defineStore('player', {
       
       // 添加到播放历史
       this.addToPlayHistory(song);
+    },
+    
+    // 更新当前播放索引 - 确保UI同步
+    updateCurrentIndex() {
+      if (!this.currentSong) return;
+      
+      const activePlaylist = this.playlists.find(list => list.id === this.activePlaylistId);
+      if (!activePlaylist) return;
+      
+      // 查找当前歌曲在活跃播放列表中的索引
+      const newIndex = activePlaylist.songs.findIndex(song => song.id === this.currentSong.id);
+      if (newIndex !== -1) {
+        this.currentIndex = newIndex;
+      }
     },
     
     // 播放全部歌曲

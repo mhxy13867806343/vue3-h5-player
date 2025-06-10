@@ -105,7 +105,7 @@
             :key="song.id"
             :title="song.name"
             :label="song.artist"
-            :class="{ active: index === playerStore.currentIndex && activePlaylistId === playerStore.activePlaylistId }"
+            :class="{ active: isCurrentSong(index) }"
             @click="playSongByIndex(index)"
           >
             <template #right-icon>
@@ -231,9 +231,10 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
-import { usePlayerStore } from '@/store/modules/player';
-import { showToast as Toast } from 'vant';
+import { ref, computed, watch, onMounted } from 'vue';
+import { usePlayerStore } from '../store/modules/player';
+import { usePlayerSync } from '@/hooks/usePlayerSync';
+import { showToast as Toast, showConfirmDialog, showDialog } from 'vant';
 
 const playerStore = usePlayerStore();
 const showPlaylist = ref(false);
@@ -251,10 +252,13 @@ watch(() => playerStore.activePlaylistId, (newId) => {
   activePlaylistId.value = newId;
 });
 
-// 获取当前活跃播放列表
-const currentPlaylist = computed(() => {
-  return playerStore.playlists.find(list => list.id === playerStore.activePlaylistId) || { songs: [] };
-});
+// 使用播放器同步hook
+const { 
+  currentPlaylist, 
+  isActivePlaylist, 
+  playSongByIndex, 
+  isCurrentSong 
+} = usePlayerSync(activePlaylistId);
 
 // 无限播放模式计算属性
 const isInfinitePlayMode = computed(() => {
@@ -326,13 +330,7 @@ function onPlaylistChange(playlistId) {
   Toast(`已切换至播放列表: ${playerStore.playlists.find(p => p.id === playlistId)?.name}`);
 }
 
-// 通过索引播放歌曲
-function playSongByIndex(index) {
-  if (!currentPlaylist.value || !currentPlaylist.value.songs[index]) return;
-  
-  const song = currentPlaylist.value.songs[index];
-  playerStore.playSong(song); // 使用更新后的playSong方法
-}
+// 使用usePlayerSync hook中的playSongByIndex方法
 
 // 从播放列表中移除歌曲
 function removeSongFromList(index) {

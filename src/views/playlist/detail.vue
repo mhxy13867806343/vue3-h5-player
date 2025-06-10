@@ -4,7 +4,17 @@ import { ShareSheet } from 'vant';
 import { getPlaylistDetail, getSongDetail } from '@/apis/music';
 import { formatPlayCount, formatTime } from '@/utils/tools';
 import { usePlayerStore } from '@/store/modules/player';
+import { usePlayerSync } from '@/hooks/usePlayerSync';
+// 播放器状态管理
+const playerStore = usePlayerStore();
 
+const activePlaylistId = ref(playerStore.activePlaylistId); // 当前选中的播放列表ID
+const {
+  currentPlaylist,
+  isActivePlaylist,
+  playSongByIndex,
+  isCurrentSong
+} = usePlayerSync(activePlaylistId);
 const route = useRoute();
 const router = useRouter();
 // 来源路由
@@ -36,8 +46,6 @@ const goToComments = () => {
   });
 };
 
-// 播放器状态管理
-const playerStore = usePlayerStore();
 
 // 分享选项
 const shareOptions = [
@@ -290,7 +298,9 @@ onMounted(() => {
       </div>
       
       <div class="song-list">
-        <div class="song-item" v-for="(song, index) in songs" :key="song.id">
+        <div class="song-item" v-for="(song, index) in songs" :key="song.id"
+         :class="{ 'active': isCurrentSong(index) }"  @click="playSong(song)"
+        >
           <div class="index">{{ index + 1 }}</div>
           <div class="song-info">
             <div class="song-name">{{ song.name }}</div>
@@ -300,7 +310,7 @@ onMounted(() => {
             </div>
           </div>
           <div class="song-actions">
-            <van-icon name="play-circle-o" @click="playSong(song)" />
+            <van-icon name="play-circle-o" />
             <van-icon name="ellipsis" />
           </div>
         </div>
@@ -429,7 +439,6 @@ onMounted(() => {
 .song-list-container {
   background-color: #fff;
   border-radius: 20px 20px 0 0;
-  margin-top: -20px;
   padding: 0 15px;
   
   .song-list-header {
@@ -474,7 +483,11 @@ onMounted(() => {
       padding: 12px 0;
       align-items: center;
       border-bottom: 1px solid $border-color-light;
-      
+        &.active {
+          color: $primary-color;
+          background-color: rgba(0, 0, 0, 0.02);
+          position: relative;
+        }
       .index {
         width: 30px;
         text-align: center;
