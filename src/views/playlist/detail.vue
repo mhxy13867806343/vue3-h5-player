@@ -123,20 +123,13 @@ const playAll = async () => {
       picUrl: song.al.picUrl
     }));
     
-    // 清空当前播放列表并添加新歌单
-    playerStore.clearPlaylist();
+    // 使用playAll方法替换当前播放列表并播放新的歌单
+    playerStore.playAll(playlist, true); // 第二个参数true表示替换当前播放列表
     
-    // 添加歌曲到播放列表并播放第一首
-    if (playlist.length > 0) {
-      // 获取第一首歌曲的URL
-      const firstSong = playlist[0];
-      playerStore.playlist = playlist;
-      playerStore.currentIndex = 0;
-      playerStore.currentSong = firstSong;
-      playerStore.playing = true;
+    // 提示添加成功
       
       showToast('已添加到播放列表');
-    }
+    
   } catch (error) {
     console.error('播放失败:', error);
     showToast('播放失败');

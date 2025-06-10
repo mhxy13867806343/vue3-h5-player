@@ -6,7 +6,7 @@ import pinia from './store'
 // 导入全局样式
 import './style.css'
 import './style/global.scss'
-
+import '@/assets/css/icon-font/iconfont.js'
 // 导入Vant组件库
 import 'vant/lib/index.css'
 
