@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted, computed, watch } from 'vue';
 import { showToast, showNotify } from 'vant';
 import { useRouter, useRoute } from 'vue-router';
 import { useSettingsStore } from '@/store/modules/settings';
@@ -21,6 +21,127 @@ const currentColorProp = ref('');
 // 页面路径管理
 const hiddenPaths = ref(settingsStore.playerVisibility.hiddenPaths);
 const newPath = ref('');
+
+// 路径自动补全相关
+const showPathSuggestions = ref(false);
+const allRoutePaths = computed(() => settingsStore.allRoutePaths);
+const filteredPaths = ref([]);
+const selectedPaths = ref([]); // 已选路径列表
+const pathSearchText = ref(''); // 路径搜索文本
+
+// 过滤路径建议
+const filterSuggestions = () => {
+  // 过滤已经存在的路径
+  const availablePaths = allRoutePaths.value.filter(path => 
+    !hiddenPaths.value.includes(path)
+  );
+  
+  // 根据搜索文本或输入过滤
+  const searchText = pathSearchText.value || newPath.value;
+  if (searchText) {
+    filteredPaths.value = availablePaths.filter(path => 
+      path.toLowerCase().includes(searchText.toLowerCase())
+    );
+  } else {
+    filteredPaths.value = availablePaths; // 显示所有可用路径
+  }
+  
+  // 排序：已选中的路径排在前面
+  filteredPaths.value.sort((a, b) => {
+    const aSelected = selectedPaths.value.includes(a);
+    const bSelected = selectedPaths.value.includes(b);
+    if (aSelected && !bSelected) return -1;
+    if (!aSelected && bSelected) return 1;
+    return a.localeCompare(b);
+  });
+};
+
+// 选择单个路径
+const selectPath = (path) => {
+  newPath.value = path;
+  showPathSuggestions.value = false;
+  selectedPaths.value = [];
+};
+
+// 切换路径选中状态
+const togglePathSelection = (path) => {
+  const index = selectedPaths.value.indexOf(path);
+  if (index > -1) {
+    selectedPaths.value.splice(index, 1);
+  } else {
+    selectedPaths.value.push(path);
+  }
+};
+
+// 添加多个选中的路径
+const selectMultiplePaths = () => {
+  if (selectedPaths.value.length === 0) return;
+  
+  let addedCount = 0;
+  let errorCount = 0;
+  
+  selectedPaths.value.forEach(path => {
+    const result = settingsStore.addHiddenPath(path);
+    if (result.success) {
+      addedCount++;
+    } else {
+      errorCount++;
+    }
+  });
+  
+  // 更新本地数据
+  hiddenPaths.value = [...settingsStore.playerVisibility.hiddenPaths];
+  
+  // 显示结果提示
+  if (addedCount > 0) {
+    showToast(`成功添加 ${addedCount} 个路径${errorCount > 0 ? `，${errorCount} 个失败` : ''}`); 
+  } else if (errorCount > 0) {
+    showToast({ type: 'fail', message: `添加失败，可能路径已存在或无效` });
+  }
+  
+  // 清空选中列表并更新过滤列表
+  selectedPaths.value = [];
+  filterSuggestions();
+};
+
+// 关闭路径建议框
+const closePathSuggestions = () => {
+  showPathSuggestions.value = false;
+  selectedPaths.value = [];
+  pathSearchText.value = '';
+};
+
+// 点击页面其他位置时隐藏建议
+watch(() => showPathSuggestions.value, (show) => {
+  if (show) {
+    filterSuggestions(); // 首次显示时加载建议
+    setTimeout(() => {
+      document.addEventListener('click', hidePathSuggestions);
+    }, 0);
+  } else {
+    document.removeEventListener('click', hidePathSuggestions);
+    selectedPaths.value = [];
+  }
+});
+
+// 隐藏路径建议
+const hidePathSuggestions = (e) => {
+  // 点击路径输入框、建议框和按钮外部时隐藏
+  const suggestions = document.querySelector('.path-suggestions');
+  const input = document.querySelector('.input-with-button .van-field');
+  const buttons = document.querySelectorAll('.path-suggestions-actions .van-button');
+  
+  let clickedOnButton = false;
+  buttons.forEach(button => {
+    if (button.contains(e.target)) clickedOnButton = true;
+  });
+  
+  if (suggestions && !suggestions.contains(e.target) && 
+      input && !input.contains(e.target) && 
+      !clickedOnButton) {
+    showPathSuggestions.value = false;
+  }
+};
 
 // 保存样式设置
 const saveStyles = () => {
@@ -48,17 +169,23 @@ const addHiddenPath = () => {
     return;
   }
   
+  // 确保路径以斜杠开头
   if (newPath.value.charAt(0) !== '/') {
     newPath.value = '/' + newPath.value;
   }
   
-  if (!hiddenPaths.value.includes(newPath.value)) {
-    settingsStore.addHiddenPath(newPath.value);
+  // 使用store中的addHiddenPath方法，该方法已实现路径有效性检查
+  const result = settingsStore.addHiddenPath(newPath.value);
+  
+  if (result.success) {
+    // 更新本地数据
     hiddenPaths.value = [...settingsStore.playerVisibility.hiddenPaths];
     newPath.value = '';
-    showToast('添加成功');
+    showToast(result.message);
+    showPathSuggestions.value = false; // 添加成功后隐藏路径建议
   } else {
-    showToast('该路径已存在');
+    // 显示错误信息
+    showToast({ type: 'fail', message: result.message });
   }
 };
 
@@ -160,8 +287,45 @@ const applyColorChange = (color) => {
       </div>
       
       <div class="input-with-button">
-        <van-field v-model="newPath" placeholder="输入路径，例如/setting" />
+        <van-field 
+          v-model="newPath" 
+          placeholder="输入路径，例如setting或者s的时候 ，会出现让你补全的列表可以选择"
+          @focus="showPathSuggestions = true"
+          @input="filterSuggestions"
+          clearable
+        />
         <van-button type="primary" size="small" @click="addHiddenPath">添加</van-button>
+      </div>
+      
+      <!-- 路径提示列表 -->
+      <div v-if="showPathSuggestions && filteredPaths.length > 0" class="path-suggestions">
+        <div class="path-suggestions-header">
+          <span>可用路径 ({{ filteredPaths.length }})</span>
+          <div class="path-suggestions-actions">
+            <van-button size="mini" type="primary" @click="selectMultiplePaths" :disabled="selectedPaths.length === 0">添加选中</van-button>
+            <van-button size="mini" @click="closePathSuggestions">关闭</van-button>
+          </div>
+        </div>
+        <div class="path-suggestions-search">
+          <van-field
+            v-model="pathSearchText"
+            placeholder="搜索路径"
+            clearable
+            @input="filterSuggestions"
+          />
+        </div>
+        <div class="path-suggestions-list">
+          <div 
+            v-for="path in filteredPaths" 
+            :key="path" 
+            class="path-suggestion-item" 
+            :class="{ 'path-suggestion-item-selected': selectedPaths.includes(path) }"
+            @click="togglePathSelection(path)"
+          >
+            <van-checkbox :value="selectedPaths.includes(path)" @click.stop></van-checkbox>
+            <span class="path-text" :title="path">{{ path }}</span>
+          </div>
+        </div>
       </div>
       
       <div class="path-list">
@@ -274,10 +438,99 @@ const applyColorChange = (color) => {
   .input-with-button {
     display: flex;
     margin-bottom: 16px;
+    position: relative;
     
     .van-field {
       flex: 1;
       margin-right: 8px;
+    }
+  }
+  
+  // 路径建议列表样式
+  .path-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 31px;
+    width: calc(100% - 76px); // 减去按钮宽度和间距
+    max-height: 350px;
+    background-color: #fff;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    
+    .path-suggestions-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px;
+      border-bottom: 1px solid #eee;
+      background-color: #f8f8f8;
+      border-radius: 8px 8px 0 0;
+      
+      span {
+        font-weight: 500;
+        color: #333;
+      }
+      
+      .path-suggestions-actions {
+        display: flex;
+        gap: 8px;
+        
+        .van-button {
+          height: 28px;
+          font-size: 12px;
+        }
+      }
+    }
+    
+    .path-suggestions-search {
+      padding: 8px 12px;
+      border-bottom: 1px solid #eee;
+      
+      .van-field {
+        background-color: #f5f5f5;
+        border-radius: 4px;
+      }
+    }
+    
+    .path-suggestions-list {
+      overflow-y: auto;
+      max-height: 250px;
+    }
+    
+    .path-suggestion-item {
+      padding: 10px 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      border-bottom: 1px solid #f5f5f5;
+      transition: background-color 0.2s;
+      
+      &:last-child {
+        border-bottom: none;
+      }
+      
+      &:hover {
+        background-color: #f5f5f5;
+      }
+      
+      &.path-suggestion-item-selected {
+        background-color: #e8f0fe;
+      }
+      
+      .path-text {
+        margin-left: 8px;
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      
+      .van-checkbox {
+        margin-right: 8px;
+      }
     }
   }
   
