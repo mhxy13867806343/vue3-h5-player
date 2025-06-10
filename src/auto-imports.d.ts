@@ -75,6 +75,7 @@ declare global {
   const useRoute: typeof import('vue-router')['useRoute']
   const useRouter: typeof import('vue-router')['useRouter']
   const useSearchStore: typeof import('./store/modules/search.js')['useSearchStore']
+  const useSettingsStore: typeof import('./store/modules/settings.js')['useSettingsStore']
   const useSlots: typeof import('vue')['useSlots']
   const useTemplateRef: typeof import('vue')['useTemplateRef']
   const useUserStore: typeof import('./store/modules/user.js')['useUserStore']
@@ -164,6 +165,7 @@ declare module 'vue' {
     readonly useRoute: UnwrapRef<typeof import('vue-router')['useRoute']>
     readonly useRouter: UnwrapRef<typeof import('vue-router')['useRouter']>
     readonly useSearchStore: UnwrapRef<typeof import('./store/modules/search.js')['useSearchStore']>
+    readonly useSettingsStore: UnwrapRef<typeof import('./store/modules/settings.js')['useSettingsStore']>
     readonly useSlots: UnwrapRef<typeof import('vue')['useSlots']>
     readonly useTemplateRef: UnwrapRef<typeof import('vue')['useTemplateRef']>
     readonly useUserStore: UnwrapRef<typeof import('./store/modules/user.js')['useUserStore']>

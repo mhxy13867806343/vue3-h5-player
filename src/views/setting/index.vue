@@ -1,6 +1,6 @@
 <script setup>
 import { ref, reactive, onMounted, computed, watch } from 'vue';
-import { showToast, showNotify } from 'vant';
+import { showToast, showNotify, Checkbox } from 'vant';
 import { useRouter, useRoute } from 'vue-router';
 import { useSettingsStore } from '@/store/modules/settings';
 
@@ -31,19 +31,31 @@ const pathSearchText = ref(''); // 路径搜索文本
 
 // 过滤路径建议
 const filterSuggestions = () => {
+  console.log('Filtering paths, allRoutePaths:', allRoutePaths.value.length);
+  // 确保路径列表非空
+  if (!allRoutePaths.value || allRoutePaths.value.length === 0) {
+    console.log('No routes available');
+    filteredPaths.value = [];
+    return;
+  }
+
   // 过滤已经存在的路径
   const availablePaths = allRoutePaths.value.filter(path => 
     !hiddenPaths.value.includes(path)
   );
   
+  console.log('Available paths:', availablePaths.length);
+  
   // 根据搜索文本或输入过滤
   const searchText = pathSearchText.value || newPath.value;
-  if (searchText) {
+  if (searchText && searchText.trim() !== '') {
     filteredPaths.value = availablePaths.filter(path => 
       path.toLowerCase().includes(searchText.toLowerCase())
     );
+    console.log('Filtered by search:', filteredPaths.value.length);
   } else {
-    filteredPaths.value = availablePaths; // 显示所有可用路径
+    filteredPaths.value = [...availablePaths]; // 显示所有可用路径
+    console.log('Showing all paths:', filteredPaths.value.length);
   }
   
   // 排序：已选中的路径排在前面
@@ -55,6 +67,14 @@ const filterSuggestions = () => {
     return a.localeCompare(b);
   });
 };
+
+// 初始化时多加载一次、确保数据准备好
+onMounted(() => {
+  // 延迟一下确保路由列表已加载
+  setTimeout(() => {
+    filterSuggestions();
+  }, 300);
+});
 
 // 选择单个路径
 const selectPath = (path) => {
@@ -102,6 +122,7 @@ const selectMultiplePaths = () => {
   // 清空选中列表并更新过滤列表
   selectedPaths.value = [];
   filterSuggestions();
+  closePathSuggestions()
 };
 
 // 关闭路径建议框
@@ -109,6 +130,23 @@ const closePathSuggestions = () => {
   showPathSuggestions.value = false;
   selectedPaths.value = [];
   pathSearchText.value = '';
+};
+
+// 处理输入框聚焦事件
+const handleInputFocus = () => {
+  // 清除之前的搜索和选择状态
+  pathSearchText.value = '';
+  // 打开建议列表
+  showPathSuggestions.value = true;
+  // 重新筛选，显示所有可用路径
+  filterSuggestions();
+};
+
+// 处理输入框清空事件
+const handleInputClear = () => {
+  // 重新过滤显示所有路径
+  pathSearchText.value = '';
+  filterSuggestions();
 };
 
 // 点击页面其他位置时隐藏建议
@@ -129,17 +167,30 @@ const hidePathSuggestions = (e) => {
   // 点击路径输入框、建议框和按钮外部时隐藏
   const suggestions = document.querySelector('.path-suggestions');
   const input = document.querySelector('.input-with-button .van-field');
+  const inputField = document.querySelector('.input-with-button .van-field__control');
+  const clearButton = document.querySelector('.input-with-button .van-field__clear');
   const buttons = document.querySelectorAll('.path-suggestions-actions .van-button');
   
   let clickedOnButton = false;
   buttons.forEach(button => {
-    if (button.contains(e.target)) clickedOnButton = true;
+    if (button && button.contains(e.target)) clickedOnButton = true;
   });
+  
+  // 判断是否点击了清除按钮
+  const clickedOnClear = clearButton && clearButton.contains(e.target);
   
   if (suggestions && !suggestions.contains(e.target) && 
       input && !input.contains(e.target) && 
-      !clickedOnButton) {
+      !clickedOnButton && !clickedOnClear) {
     showPathSuggestions.value = false;
+  }
+  
+  // 如果点击了清除按钮，保持下拉列表显示
+  if (clickedOnClear) {
+    setTimeout(() => {
+      showPathSuggestions.value = true;
+      filterSuggestions();
+    }, 0);
   }
 };
 
@@ -290,8 +341,9 @@ const applyColorChange = (color) => {
         <van-field 
           v-model="newPath" 
           placeholder="输入路径，例如setting或者s的时候 ，会出现让你补全的列表可以选择"
-          @focus="showPathSuggestions = true"
+          @focus="handleInputFocus"
           @input="filterSuggestions"
+          @clear="handleInputClear"
           clearable
         />
         <van-button type="primary" size="small" @click="addHiddenPath">添加</van-button>
@@ -322,7 +374,10 @@ const applyColorChange = (color) => {
             :class="{ 'path-suggestion-item-selected': selectedPaths.includes(path) }"
             @click="togglePathSelection(path)"
           >
-            <van-checkbox :value="selectedPaths.includes(path)" @click.stop></van-checkbox>
+            <van-checkbox 
+              :model-value="selectedPaths.includes(path)" 
+              @click.stop="togglePathSelection(path)"
+            ></van-checkbox>
             <span class="path-text" :title="path">{{ path }}</span>
           </div>
         </div>
@@ -342,7 +397,9 @@ const applyColorChange = (color) => {
         backgroundColor: miniPlayerStyle.backgroundColor
       }">
         <div class="preview-content">
-          <div class="preview-cover"></div>
+          <div class="preview-cover">
+            <div class="preview-cover-placeholder"></div>
+          </div>
           <div class="preview-info">
             <div class="preview-name" :style="{
               color: miniPlayerStyle.textColor,
@@ -577,13 +634,16 @@ const applyColorChange = (color) => {
   }
   
   .mini-player-preview {
-    height: 60px;
-    border-radius: 4px;
+    position: relative;
+    height: 70px;
+    border-radius: 8px;
+    margin-top: 20px;
     display: flex;
     align-items: center;
     padding: 0 16px;
-    position: relative;
+    justify-content: space-between;
     overflow: hidden;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
     
     .preview-content {
       display: flex;
@@ -593,34 +653,57 @@ const applyColorChange = (color) => {
     }
     
     .preview-cover {
-      width: 44px;
-      height: 44px;
+      width: 48px;
+      height: 48px;
+      background-color: #eee;
       border-radius: 4px;
-      background-color: #e0e0e0;
       margin-right: 12px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      
+      .preview-cover-placeholder {
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #e0e0e0 0%, #cccccc 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        
+        &:after {
+          content: '\266B'; // 音符符号
+          font-size: 24px;
+          color: #999;
+        }
+      }
     }
     
     .preview-info {
       flex: 1;
-      overflow: hidden;
-    }
-    
-    .preview-name {
-      margin-bottom: 4px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    
-    .preview-artist {
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      min-width: 0;
+      
+      .preview-name {
+        margin-bottom: 4px;
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      
+      .preview-artist {
+        opacity: 0.8;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
     }
     
     .preview-controls {
       display: flex;
       align-items: center;
+      margin-left: 16px;
       
       .van-icon {
         margin-left: 16px;
@@ -629,15 +712,15 @@ const applyColorChange = (color) => {
     
     .preview-progress {
       position: absolute;
-      left: 0;
-      right: 0;
       bottom: 0;
-      height: 2px;
+      left: 0;
+      width: 100%;
+      height: 3px;
       background-color: rgba(0, 0, 0, 0.1);
       
       .preview-progress-bar {
         height: 100%;
-        width: 30%;
+        width: 50%;
       }
     }
   }
