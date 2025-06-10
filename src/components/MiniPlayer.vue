@@ -1,5 +1,7 @@
 <template>
-  <div class="mini-player" v-show="playerStore.hasSong">
+  <div class="mini-player"
+       :style="{...minpayStyle}"
+       v-show="playerStore.hasSong">
     <div class="mini-player-content" @click="playerStore.togglePlayerPage">
       <div class="song-cover">
         <img v-if="playerStore.currentSong?.picUrl" :src="playerStore.currentSong.picUrl + '?param=60y60'" />
@@ -106,21 +108,69 @@
         
         <!-- 歌曲历史标签页 -->
         <template v-else-if="activeTab === 'songHistory'">
+          <!-- 歌曲历史控制行 -->
+          <div class="play-mode-row"  v-if="playerStore.playHistory.length">
+            <div class="mode-control" @click="playerStore.toggleHistoryMultiSelectMode()">
+              <van-icon :name="playerStore.historyMultiSelectMode ? 'checked' : 'newspaper-o'" class="mode-icon" />
+              <span class="mode-text">{{ playerStore.historyMultiSelectMode ? '多选模式' : '浏览模式' }}</span>
+            </div>
+            <div class="action-buttons">
+              <template v-if="playerStore.historyMultiSelectMode && playerStore.historySelectedItems.length">
+                <van-icon name="play-circle-o" class="action-btn" @click="playerStore.addMultipleSongsToPlaylist()" />
+                <van-icon name="delete" class="action-btn" @click="playerStore.removeMultipleFromHistory()" />
+                <van-icon :name="isAllHistorySelected ? 'checked' : 'circle'" class="action-btn" @click="playerStore.toggleSelectAllHistory()" />
+              </template>
+              <template v-else>
+                <van-icon name="search" class="action-btn" @click="playerStore.toggleHistorySearch()" v-if="playerStore.playHistory.length" />
+                <van-icon name="delete" class="action-btn" @click="playerStore.clearPlayHistory()" v-if="playerStore.playHistory.length" />
+              </template>
+            </div>
+          </div>
+          
+          <!-- 搜索框 -->
+          <div class="search-bar" v-if="playerStore.showHistorySearch && playerStore.playHistory.length">
+            <van-search
+              v-model="playerStore.historySearchKey"
+              placeholder="搜索歌曲历史..."
+              shape="round"
+              background="transparent"
+              @search="searchHistory"
+              @clear="clearHistorySearch"
+              @input="searchHistory"
+              clearable
+              show-action
+            >
+              <template #action>
+                <div @click="playerStore.toggleHistorySearch()">取消</div>
+              </template>
+            </van-search>
+          </div>
+          
+          <!-- 歌曲历史列表 -->
           <div 
-            v-for="(song, index) in playerStore.playHistory" 
+            v-for="(song, index) in filteredHistory" 
             :key="song.id + index"
             class="song-item"
-            @click="playerStore.playSong(song)"
+            :class="{'selected': isHistorySongSelected(song)}"
+            @click="handleHistorySongClick(song)"
           >
             <div class="song-main">
               <div class="song-name">{{ song.name }}</div>
               <div class="song-artist">{{ song.artist }}</div>
             </div>
             <div class="song-controls">
-              <van-icon name="cross" class="action-icon" />
+              <van-icon 
+                :name="playerStore.historyMultiSelectMode ? (isHistorySongSelected(song) ? 'checked' : 'circle') : 'plus'" 
+                class="action-icon" 
+                @click.stop="playerStore.historyMultiSelectMode ? playerStore.toggleHistorySongSelection(song) : playerStore.addSongToPlaylist(song)" 
+              />
+              <van-icon v-if="!playerStore.historyMultiSelectMode" name="cross" class="action-icon" @click.stop="playerStore.removeFromHistory(song)" />
             </div>
           </div>
-          <div v-if="!playerStore.playHistory.length" class="empty-list">暂无播放历史</div>
+          
+          <!-- 空状态提示 -->
+          <div v-if="!filteredHistory.length && !playerStore.playHistory.length" class="empty-list">暂无播放历史</div>
+          <div v-else-if="!filteredHistory.length && playerStore.playHistory.length" class="empty-list">没有匹配的搜索结果</div>
         </template>
       </div>
     </van-popup>
@@ -178,7 +228,11 @@ const audioRef = ref(null);
 const showPlaylist = ref(false);
 const activeTab = ref('playing'); // 当前活跃的标签页：'playing', 'songHistory', 'playlistHistory'
 const activePlaylistId = ref(playerStore.activePlaylistId); // 当前选中的播放列表ID
- const longPressTimer=ref(null)
+const longPressTimer = ref(null);
+  const route=useRoute()
+const minpayStyle=ref({})
+// 歌曲历史搜索相关
+const filteredHistory = ref([]);
 // 当前播放列表计算属性
 const currentPlaylist = computed(() => {
   return playerStore.playlists.find(list => list.id === activePlaylistId.value);
@@ -233,7 +287,21 @@ const playModeText = computed(() => {
     default: return '顺序播放';
   }
 });
+const isRouterPath=()=>{
+  const path=['/home','/user']
 
+  if(!path.includes(route.path)){
+    minpayStyle.value={
+       bottom:'0px',
+    }
+  }else{
+    minpayStyle.value={
+       bottom:'50px',
+    }
+  }
+  minpayStyle.value['transition']=`bottom  0.2s`;
+  return minpayStyle.value
+}
 // 切换播放模式
 const togglePlayMode = () => {
   // 循环切换: 1(顺序) -> 2(单曲) -> 3(随机) -> 1(顺序)...
@@ -251,13 +319,24 @@ const toggleInfiniteMode = () => {
     playerStore.setPlayCount(-1);
   }
 };
-
+watch(()=>route,(news,olds)=>{
+  isRouterPath()
+},{
+  deep:true
+})
 // 初始化
 onMounted(() => {
   if (playerStore.playing) {
     playAudio();
   }
+
+  // 初始化过滤历史记录
+  searchHistory();
+
 });
+onUnmounted(()=>{
+
+})
 
 // 监听播放状态变化
 watch(() => playerStore.playing, (newVal) => {
@@ -386,36 +465,137 @@ watch(() => playerStore.activePlaylistId, (newId) => {
   activePlaylistId.value = newId;
 });
 
+// 监听播放历史变化或搜索条件变化，更新过滤后的歌曲历史
+watch([() => playerStore.playHistory, () => playerStore.historySearchKey, () => playerStore.showHistorySearch], () => {
+  searchHistory();
+});
+
+// 监听弹出层和activeTab，确保关闭或切换时重置搜索
+watch([() => showPlaylist.value, () => activeTab.value], () => {
+  // 如果关闭弹窗或切换标签，重置搜索状态
+  if (!showPlaylist.value || activeTab.value !== 'songHistory') {
+    playerStore.showHistorySearch = false;
+    playerStore.historySearchKey = '';
+  }
+  // 每次打开时刷新过滤歌曲列表
+  searchHistory();
+});
+
 // 从播放列表中移除歌曲
+// 歌曲历史搜索功能
+function searchHistory() {
+  // 如果不显示搜索或没有查询词，则显示全部历史
+  if (!playerStore.showHistorySearch || !playerStore.historySearchKey.trim()) {
+    filteredHistory.value = [...playerStore.playHistory];
+    return;
+  }
+  
+  // 执行搜索过滤
+  const query = playerStore.historySearchKey.toLowerCase().trim();
+  filteredHistory.value = playerStore.playHistory.filter(song => 
+    song.name.toLowerCase().includes(query) || 
+    song.artist.toLowerCase().includes(query)
+  );
+}
+
+// 清除历史搜索
+function clearHistorySearch() {
+  playerStore.historySearchKey = '';
+  searchHistory();
+}
+
+// 判断歌曲是否被选中
+function isHistorySongSelected(song) {
+  if (!playerStore.historyMultiSelectMode) return false;
+  return playerStore.historySelectedItems.some(item => item.id === song.id);
+}
+
+// 处理歌曲点击事件
+function handleHistorySongClick(song) {
+  if (playerStore.historyMultiSelectMode) {
+    // 多选模式下切换选择状态
+    playerStore.toggleHistorySongSelection(song);
+  } else {
+    // 添加到播放列表但不播放
+    playerStore.addSongToPlaylist(song);
+  }
+}
+
+// 判断是否全部选中
+const isAllHistorySelected = computed(() => {
+  if (!playerStore.historyMultiSelectMode || filteredHistory.value.length === 0) return false;
+  return filteredHistory.value.every(song => 
+    playerStore.historySelectedItems.some(item => item.id === song.id)
+  );
+});
+
+// 判断是否可以关闭弹窗
+const canClosePopup = computed(() => {
+  // 只有当当前活跃的播放列表和历史记录都为空时，才允许关闭
+  const activeList = currentPlaylist.value;
+  const hasActiveSongs = activeList && activeList.songs && activeList.songs.length > 0;
+  const hasHistory = playerStore.playHistory && playerStore.playHistory.length > 0;
+  
+  // 在播放列表标签页时，如果有历史但没有当前列表，则仍然有内容可以查看
+  if (activeTab.value === 'playing' && !hasActiveSongs && hasHistory) {
+    return false;
+  }
+  
+  // 在历史标签页时，如果有当前列表但没有历史，则仍然有内容可以查看
+  if (activeTab.value === 'songHistory' && hasActiveSongs && !hasHistory) {
+    return false;
+  }
+  
+  // 如果两者都为空，则允许关闭
+  return !hasActiveSongs && !hasHistory;
+});
+
+// 点击蒙层处理
+function handleOverlayClick() {
+  if (!canClosePopup.value) {
+    // 如果不能关闭，则通知用户切换到有内容的标签页
+    if (activeTab.value === 'playing' && !currentPlaylist.value?.songs?.length && playerStore.playHistory.length > 0) {
+      // 如果在播放列表页面，但当前列表为空而历史不为空
+      activeTab.value = 'songHistory';
+      showToast('点击左上角返回按钮可以关闭');
+    } else if (activeTab.value === 'songHistory' && playerStore.playHistory.length === 0 && currentPlaylist.value?.songs?.length > 0) {
+      // 如果在历史页面，但历史为空而当前列表不为空
+      activeTab.value = 'playing';
+      showToast('点击左上角返回按钮可以关闭');
+    } else {
+      canClosePopup.value=false
+    }
+  }
+}
+
 function removeSongFromList(index) {
   if (!currentPlaylist.value || !currentPlaylist.value.songs[index]) return;
-
-  // 检查是否是当前正在播放的歌曲
-  const isCurrentSong = index === playerStore.currentIndex &&
-                       currentPlaylist.value.id === playerStore.activePlaylistId;
-
-  if (isCurrentSong) {
-    // 移除正在播放的歌曲，先切换到下一首
-    playerStore.nextSong();
+  
+  const songToRemove = currentPlaylist.value.songs[index];
+  
+  // 如果正在播放的歌曲被移除
+  if (playerStore.currentSongIndex === index) {
+    if (currentPlaylist.value.songs.length === 1) {
+      // 如果是最后一首歌，暂停播放
+      playerStore.resetCurrentSong();
+    } else {
+      // 播放下一首
+      const nextIndex = index === currentPlaylist.value.songs.length - 1 ? 0 : index;
+      playerStore.setCurrentSongIndex(nextIndex);
+    }
+  } else if (playerStore.currentSongIndex > index) {
+    // 如果移除的歌曲在当前播放歌曲之前，则需要调整当前播放索引
+    playerStore.setCurrentSongIndex(playerStore.currentSongIndex - 1);
   }
-
-  // 从列表中移除
-  currentPlaylist.value.songs.splice(index, 1);
-
-  // 如果移除的歌曲索引小于当前播放索引且是同一个列表，调整当前索引
-  if (index < playerStore.currentIndex && currentPlaylist.value.id === playerStore.activePlaylistId) {
-    playerStore.currentIndex--;
+  
+  // 直接修改当前播放列表，移除歌曲
+  const playlist = playerStore.playlists.find(list => list.id === playerStore.activePlaylistId);
+  if (playlist) {
+    playlist.songs.splice(index, 1);
+    showToast(`已从列表中移除: ${songToRemove.name}`);
+    // 保存到本地存储
+    playerStore.savePlaylists();
   }
-
-  // 如果删除后播放列表为空
-  if (currentPlaylist.value.songs.length === 0 && currentPlaylist.value.id === playerStore.activePlaylistId) {
-    playerStore.currentSong = null;
-    playerStore.currentIndex = -1;
-    playerStore.playing = false;
-  }
-
-  // 保存到本地存储
-  playerStore.savePlaylists();
 }
 
 // 键盘事件监听
@@ -489,96 +669,6 @@ onUnmounted(() => {
   }
 }
 
-// 迷你播放器样式
-.mini-player {
-  position: fixed;
-  bottom: 50px; // 留出底部导航栏高度
-  left: 0;
-  right: 0;
-  height: 60px;
-  background-color: #fff;
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
-  display: flex;
-  align-items: center;
-  padding: 0 16px;
-  z-index: 999;
-  
-  &-content {
-    display: flex;
-    align-items: center;
-    flex: 1;
-    overflow: hidden;
-  }
-  
-  .song-cover {
-    width: 44px;
-    height: 44px;
-    border-radius: 4px;
-    overflow: hidden;
-    margin-right: 12px;
-    
-    img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-    
-    .default-cover {
-      width: 100%;
-      height: 100%;
-      background-color: #f5f5f5;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: $text-color-light;
-    }
-  }
-  
-  .song-info {
-    flex: 1;
-    overflow: hidden;
-    
-    .song-name {
-      font-size: 14px;
-      color: $text-color;
-      margin-bottom: 4px;
-      width: 100%;
-      @include text-ellipsis;
-    }
-    
-    .song-artist {
-      font-size: 12px;
-      color: $text-color-light;
-      width: 100%;
-      @include text-ellipsis;
-    }
-  }
-  
-  .player-controls {
-    display: flex;
-    align-items: center;
-    
-    .van-icon {
-      margin-left: 16px;
-      color: $primary-color;
-    }
-  }
-  
-  .progress-bar {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background-color: #eee;
-    
-    .progress {
-      height: 100%;
-      background-color: $primary-color;
-      transition: width 0.1s linear;
-    }
-  }
-}
 
 // 播放列表头部
 .playlist-header {
@@ -688,6 +778,11 @@ onUnmounted(() => {
       color: $primary-color;
       opacity: 0.8;
     }
+  }
+  
+  &.selected {
+    background-color: rgba($primary-color, 0.1);
+    border-left: 2px solid $primary-color;
   }
   
   .song-main {
@@ -837,7 +932,29 @@ onUnmounted(() => {
     }
   }
 }
+@keyframes _show  {
+  0%{
+    opacity: 0;
+    transform: translateY(50px);
 
+  }
+  25%{
+    opacity: 0.25;
+     transform: translateY(25px);
+  }
+  50%{
+    opacity: 0.5;
+     transform: translateY(10px);
+  }
+  75%{
+    opacity: 0.75;
+     transform: translateY(5px);
+  }
+  100%{
+      opacity:1;
+     transform: translateY(0);
+  }
+}
 .mini-player {
   position: fixed;
   bottom: 50px; // 留出底部导航栏高度
@@ -850,6 +967,8 @@ onUnmounted(() => {
   align-items: center;
   padding: 0 16px;
   z-index: 999;
+  animation: _show .5s linear;
+
   
   .mini-player-content {
     display: flex;

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { showDialog,showConfirmDialog } from 'vant';
+import { showDialog, showConfirmDialog, showToast } from 'vant';
 // 本地存储键名
 const STORAGE_KEYS = {
   PLAY_HISTORY: 'playHistory',
@@ -74,6 +74,7 @@ const saveLastPlaylistId = (id) => {
   localStorage.setItem(STORAGE_KEYS.LAST_PLAYLIST_ID, id);
 };
 
+
 // 播放器状态管理
 export const usePlayerStore = defineStore('player', {
   state: () => ({
@@ -108,6 +109,14 @@ export const usePlayerStore = defineStore('player', {
     mvResolution: 1080,     // MV分辨率
     // 播放历史
     playHistory: getLocalPlayHistory(),
+    // 歌曲历史多选状态
+    historyMultiSelectMode: false,
+    // 歌曲历史多选已选项
+    historySelectedItems: [],
+    // 历史搜索关键词
+    historySearchKey: '',
+    // 显示历史搜索
+    showHistorySearch: false,
   }),
 
   getters: {
@@ -269,6 +278,188 @@ export const usePlayerStore = defineStore('player', {
       
       // 保存到本地存储
       savePlayHistory(this.playHistory);
+    },
+    
+    // 清空播放历史记录
+    clearPlayHistory() {
+      showConfirmDialog({
+        title: '提示',
+        message: '确定要清空所有播放历史记录吗？',
+      })
+        .then(() => {
+          this.playHistory = [];
+          this.historySelectedItems = [];
+          this.historyMultiSelectMode = false;
+          // 保存到本地存储
+          savePlayHistory(this.playHistory);
+          showToast('历史记录已清空');
+        })
+        .catch(() => {
+          // 用户取消操作
+        });
+    },
+    
+    // 切换历史记录多选模式
+    toggleHistoryMultiSelectMode() {
+      this.historyMultiSelectMode = !this.historyMultiSelectMode;
+      if (!this.historyMultiSelectMode) {
+        // 退出多选模式时清空选择
+        this.historySelectedItems = [];
+      }
+    },
+    
+    // 切换历史记录选择状态
+    toggleHistorySongSelection(song) {
+      if (!this.historyMultiSelectMode) return;
+      
+      const index = this.historySelectedItems.findIndex(item => item.id === song.id);
+      if (index > -1) {
+        // 如果已选中，则取消选择
+        this.historySelectedItems.splice(index, 1);
+      } else {
+        // 如果未选中，则添加到选中列表
+        this.historySelectedItems.push(song);
+      }
+    },
+    
+    // 从历史记录中移除单个歌曲
+    removeFromHistory(song) {
+      const index = this.playHistory.findIndex(item => item.id === song.id);
+      if (index > -1) {
+        this.playHistory.splice(index, 1);
+        // 保存到本地存储
+        savePlayHistory(this.playHistory);
+      }
+    },
+    
+    // 从历史记录中移除多个歌曲
+    removeMultipleFromHistory() {
+      if (this.historySelectedItems.length === 0) {
+        showToast('请先选择要删除的歌曲');
+        return;
+      }
+      
+      showConfirmDialog({
+        title: '提示',
+        message: `确定要删除选中的${this.historySelectedItems.length}首歌曲吗？`,
+      })
+        .then(() => {
+          // 获取选中歌曲的ID列表
+          const selectedIds = this.historySelectedItems.map(song => song.id);
+          
+          // 过滤掉选中的歌曲
+          this.playHistory = this.playHistory.filter(song => !selectedIds.includes(song.id));
+          
+          // 保存到本地存储
+          savePlayHistory(this.playHistory);
+          
+          // 清空选择并退出多选模式
+          this.historySelectedItems = [];
+          this.historyMultiSelectMode = false;
+          
+          showToast('已删除选中的歌曲');
+        })
+        .catch(() => {
+          // 用户取消操作
+        });
+    },
+    
+    // 将歌曲添加到播放列表（不播放）
+    addSongToPlaylist(song) {
+      if (!song || !song.id) return;
+      
+      // 获取当前活跃的播放列表
+      const activePlaylist = this.playlists.find(list => list.id === this.activePlaylistId);
+      if (!activePlaylist) return;
+      
+      // 检查歌曲是否已在播放列表中
+      const index = activePlaylist.songs.findIndex(item => item.id === song.id);
+      
+      if (index === -1) {
+        // 如果不存在，添加到播放列表
+        activePlaylist.songs.push(song);
+        
+        // 保存到本地存储
+        savePlaylists(this.playlists);
+        
+        // 提示用户
+        showToast('已添加到播放列表');
+      } else {
+        showToast('歌曲已在播放列表中');
+      }
+    },
+    
+    // 将多首歌曲添加到播放列表（不播放）
+    addMultipleSongsToPlaylist() {
+      if (this.historySelectedItems.length === 0) {
+        showToast('请先选择要添加的歌曲');
+        return;
+      }
+      
+      // 获取当前活跃的播放列表
+      const activePlaylist = this.playlists.find(list => list.id === this.activePlaylistId);
+      if (!activePlaylist) return;
+      
+      let addedCount = 0;
+      
+      // 添加每首歌曲
+      this.historySelectedItems.forEach(song => {
+        // 检查歌曲是否已在播放列表中
+        const index = activePlaylist.songs.findIndex(item => item.id === song.id);
+        
+        if (index === -1) {
+          // 如果不存在，添加到播放列表
+          activePlaylist.songs.push(song);
+          addedCount++;
+        }
+      });
+      
+      if (addedCount > 0) {
+        // 保存到本地存储
+        savePlaylists(this.playlists);
+        
+        // 提示用户
+        showToast(`已添加${addedCount}首歌曲到播放列表`);
+      } else {
+        showToast('选中的歌曲已全部在播放列表中');
+      }
+      
+      // 退出多选模式
+      this.historyMultiSelectMode = false;
+      this.historySelectedItems = [];
+    },
+    
+    // 选择或取消选择所有历史记录
+    toggleSelectAllHistory(filteredHistory = null) {
+      if (!this.historyMultiSelectMode) return;
+      
+      const historyToUse = filteredHistory || this.playHistory;
+      
+      // 如果当前所有歌曲都已选择，则取消全选
+      const allSelected = historyToUse.every(song => 
+        this.historySelectedItems.some(item => item.id === song.id)
+      );
+      
+      if (allSelected) {
+        // 取消全选
+        this.historySelectedItems = [];
+      } else {
+        // 全选 (使用新数组避免引用问题)
+        this.historySelectedItems = [...historyToUse];
+      }
+    },
+    
+    // 更新搜索关键词
+    updateHistorySearchKey(key) {
+      this.historySearchKey = key;
+    },
+    
+    // 切换历史搜索显示
+    toggleHistorySearch() {
+      this.showHistorySearch = !this.showHistorySearch;
+      if (!this.showHistorySearch) {
+        this.historySearchKey = '';
+      }
     },
     
     // 播放/暂停切换
@@ -474,6 +665,30 @@ export const usePlayerStore = defineStore('player', {
       this.showPlayCountSetting = !this.showPlayCountSetting;
     },
     
+    // 设置当前歌曲索引
+    setCurrentSongIndex(index) {
+      if (typeof index !== 'number') return;
+      this.currentIndex = index;
+      
+      // 找到当前活跃的播放列表
+      const activePlaylist = this.playlists.find(list => list.id === this.activePlaylistId);
+      if (!activePlaylist || !activePlaylist.songs[index]) return;
+      
+      // 更新当前歌曲
+      this.currentSong = activePlaylist.songs[index];
+      this.currentSongPlayCount = 0; // 重置播放次数
+    },
+    
+    // 重置当前歌曲
+    resetCurrentSong() {
+      this.currentSong = null;
+      this.currentIndex = -1;
+      this.playing = false;
+      this.currentTime = 0;
+      this.duration = 0;
+      this.currentSongPlayCount = 0;
+    },
+    
     // 清空当前活跃的播放列表
     clearActivePlaylist() {
       showConfirmDialog({
@@ -623,5 +838,24 @@ export const usePlayerStore = defineStore('player', {
       this.isMvPlaying = false;
       this.playing = false;
     },
+  },
+  
+  // 持久化配置
+  persist: {
+    key: 'vue3-h5-player-state',
+    storage: localStorage,
+    paths: [
+      'currentSong',
+      'playing',
+      'playlists',
+      'activePlaylistId',
+      'currentIndex',
+      'currentTime',
+      'duration',
+      'playMode',
+      'playCount', 
+      'playHistory',
+      'currentMv'
+    ]
   }
 });
