@@ -1,6 +1,10 @@
 <template>
   <div class="mini-player"
-       :style="{...minpayStyle}"
+       :style="{
+         ...minpayStyle,
+         backgroundColor: settingsStore.miniPlayerStyle.backgroundColor,
+         display: shouldShowPlayer ? undefined : 'none'
+       }"
        v-show="playerStore.hasSong">
     <div class="mini-player-content" @click="playerStore.togglePlayerPage">
       <div class="song-cover">
@@ -10,8 +14,14 @@
         </div>
       </div>
       <div class="song-info">
-        <div class="song-name">{{ playerStore.currentSong?.name || '未知歌曲' }}</div>
-        <div class="song-artist">{{ playerStore.currentSong?.artist || '未知歌手' }}</div>
+        <div class="song-name" :style="{
+          color: settingsStore.miniPlayerStyle.textColor,
+          fontSize: settingsStore.miniPlayerStyle.fontSize + 'px'
+        }">{{ playerStore.currentSong?.name || '未知歌曲' }}</div>
+        <div class="song-artist" :style="{
+          color: settingsStore.miniPlayerStyle.artistColor,
+          fontSize: settingsStore.miniPlayerStyle.artistFontSize + 'px'
+        }">{{ playerStore.currentSong?.artist || '未知歌手' }}</div>
       </div>
     </div>
     
@@ -19,11 +29,13 @@
       <van-icon 
         :name="playerStore.playing ? 'pause-circle-o' : 'play-circle-o'" 
         size="30" 
+        :style="{ color: settingsStore.miniPlayerStyle.iconColor }"
         @click.stop="playerStore.togglePlay" 
       />
       <van-icon 
         name="bars"
         size="24" 
+        :style="{ color: settingsStore.miniPlayerStyle.iconColor }"
         @click.stop="showPlaylist = true" 
         @touchstart="startLongPress"
         @touchend="endLongPress"
@@ -33,7 +45,10 @@
     
     <!-- 进度条 -->
     <div class="progress-bar">
-      <div class="progress" :style="{ width: `${playerStore.progress}%` }"></div>
+      <div class="progress" :style="{ 
+        width: `${playerStore.progress}%`,
+        backgroundColor: settingsStore.miniPlayerStyle.progressColor 
+      }"></div>
     </div>
     
     <!-- 音频元素 -->
@@ -223,7 +238,10 @@
 import '@/assets/css/icon-font/iconfont.css';
 import { showToast } from 'vant';
 import { usePlayerStore } from '@/store/modules/player';
+import { useSettingsStore } from '@/store/modules/settings';
+
 const playerStore = usePlayerStore();
+const settingsStore = useSettingsStore();
 const audioRef = ref(null);
 const showPlaylist = ref(false);
 const activeTab = ref('playing'); // 当前活跃的标签页：'playing', 'songHistory', 'playlistHistory'
@@ -231,6 +249,12 @@ const activePlaylistId = ref(playerStore.activePlaylistId); // 当前选中的�
 const longPressTimer = ref(null);
   const route=useRoute()
 const minpayStyle=ref({})
+
+// 计算属性，判断是否应该显示播放器
+const shouldShowPlayer = computed(() => {
+  return settingsStore.shouldShowPlayer(route.path);
+});
+
 // 歌曲历史搜索相关
 const filteredHistory = ref([]);
 // 当前播放列表计算属性
@@ -320,7 +344,9 @@ const toggleInfiniteMode = () => {
   }
 };
 watch(()=>route,(news,olds)=>{
+  // 更新播放器位置
   isRouterPath()
+  // 当路由变化时，shouldShowPlayer计算属性会自动重新计算
 },{
   deep:true
 })
