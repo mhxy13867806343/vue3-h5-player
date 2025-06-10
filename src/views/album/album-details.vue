@@ -60,7 +60,7 @@
             v-for="(song, index) in album.songs" 
             :key="song.id" 
             class="song-item"
-            @click="playSong(song)"
+            :class="{ 'toggle-active': isExactSameSong(song) }"  @click="playSong(song)"
           >
             <div class="song-index">{{ index + 1 }}</div>
             <div class="song-info">
@@ -70,7 +70,10 @@
               </div>
             </div>
             <div class="song-actions">
-              <van-icon name="play-circle-o" size="20" />
+              <van-icon
+                :name="isCurrentPlaying(song) ? 'pause-circle-o' : 'play-circle-o'"
+                @click.stop="handlePlayClick(song)"
+                size="20" />
             </div>
           </div>
         </div>
@@ -86,11 +89,38 @@ import { showFailToast, showLoadingToast } from 'vant';
 import { getAlbum } from '@/apis/music';
 import { formatDate } from '@/utils/tools';
 import { usePlayerStore } from '@/store/modules/player';
+import { usePlayerSync } from "@/hooks/usePlayerSync.js";
 
 const route = useRoute();
 const router = useRouter();
 const playerStore = usePlayerStore();
 
+const activePlaylistId = ref(playerStore.activePlaylistId); // 当前选中的播放列表ID
+const {
+  currentPlaylist,
+  isActivePlaylist,
+  playSongByIndex,
+  playSong,
+  isCurrentPlaying,
+    isExactSameSong,
+  isCurrentSong
+} = usePlayerSync(activePlaylistId);
+
+// 新增：处理歌曲播放点击事件
+// 解决当点击当前正在播放的歌曲时无法暂停的问题
+const handlePlayClick = (song) => {
+  console.log('专辑详情页处理歌曲点击:', song.name);
+  
+  // 如果是当前播放的歌曲，则切换播放/暂停状态
+  if (playerStore.currentSong && playerStore.currentSong.id === song.id) {
+    console.log('切换当前歌曲播放状态');
+    playerStore.togglePlay();
+  } else {
+    // 如果是新歌曲，则播放它
+    console.log('播放新歌曲');
+    playSong(song);
+  }
+};
 // 状态管理
 const album = ref(null);
 const loading = ref(true);
@@ -138,27 +168,6 @@ const formatArtists = (artists) => {
   return artists.map(artist => artist.name).join(', ');
 };
 
-// 播放单曲
-const playSong = async (song) => {
-  if (!song) return;
-  
-  // 补充歌曲信息
-  const songInfo = {
-    id: song.id,
-    name: song.name,
-    artist: formatArtists(song.ar || song.artists),
-    picUrl: album.value?.picUrl || '',
-    duration: song.dt || song.duration || 0
-  };
-  
-  // 使用全局播放器播放
-  showLoadingToast({
-    message: '正在加载歌曲...',
-    forbidClick: true,
-  });
-  
-  playerStore.playSong(songInfo);
-};
 
 // 播放全部
 const playAll = () => {

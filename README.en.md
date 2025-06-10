@@ -16,7 +16,7 @@ A mobile music player application developed based on Vue3, providing functions s
 
 ## Features
 
-- 🎵 **Music Playback**: Support play/pause, previous/next, playback mode switching, etc.
+- 🎵 **Music Playback**: Support play/pause, previous/next, playback mode switching with synchronized control across components, etc.
 - 📱 **Global Player**: Support mini player and full-screen playback page
 - 📋 **Playlist Management**: Recommended playlists, playlist detail browsing
 - 🎬 **MV Playback**: Support for multiple resolutions (480p/720p/1080p) switching

@@ -398,6 +398,7 @@ const playAudio = () => {
 
   const audio = audioRef.value;
   if (audio) {
+
     audio.play().catch(err => {
       showToast('播放失败，请稍后再试');
       playerStore.playing = false;

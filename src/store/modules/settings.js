@@ -14,7 +14,7 @@ const defaultMiniPlayerStyle = {
 
 // 默认隐藏播放器的路径
 const defaultHiddenPaths = [
-  '/setting'
+  '/setting',
 ];
 
 // 获取路由中定义的所有路径

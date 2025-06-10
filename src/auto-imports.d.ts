@@ -72,6 +72,7 @@ declare global {
   const useLink: typeof import('vue-router')['useLink']
   const useModel: typeof import('vue')['useModel']
   const usePlayerStore: typeof import('./store/modules/player.js')['usePlayerStore']
+  const usePlayerSync: typeof import('./hooks/usePlayerSync.js')['usePlayerSync']
   const useRoute: typeof import('vue-router')['useRoute']
   const useRouter: typeof import('vue-router')['useRouter']
   const useSearchStore: typeof import('./store/modules/search.js')['useSearchStore']
@@ -162,6 +163,7 @@ declare module 'vue' {
     readonly useLink: UnwrapRef<typeof import('vue-router')['useLink']>
     readonly useModel: UnwrapRef<typeof import('vue')['useModel']>
     readonly usePlayerStore: UnwrapRef<typeof import('./store/modules/player.js')['usePlayerStore']>
+    readonly usePlayerSync: UnwrapRef<typeof import('./hooks/usePlayerSync.js')['usePlayerSync']>
     readonly useRoute: UnwrapRef<typeof import('vue-router')['useRoute']>
     readonly useRouter: UnwrapRef<typeof import('vue-router')['useRouter']>
     readonly useSearchStore: UnwrapRef<typeof import('./store/modules/search.js')['useSearchStore']>

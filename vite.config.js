@@ -58,7 +58,7 @@ export default defineConfig(({ command, mode }) => {
       // 开发服务器代理配置
       proxy: {
         '^/api': {
-          target: 'http://localhost:8080',
+          target: 'https://163api.qijieya.cn/',
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api/, ''),
         },

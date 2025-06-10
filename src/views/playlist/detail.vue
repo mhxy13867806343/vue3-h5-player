@@ -13,10 +13,26 @@ const {
   currentPlaylist,
   isActivePlaylist,
   playSongByIndex,
-    playSong,
-    isCurrentPlaying,
+  playSong,
+  isCurrentPlaying,
+    isExactSameSong,
   isCurrentSong
 } = usePlayerSync(activePlaylistId);
+
+// 新增：处理播放点击事件，正确处理播放/暂停逻辑
+const handlePlayClick = (song) => {
+  console.log('处理歌曲点击:', song.name);
+  
+  // 如果点击的是当前播放的歌曲，则切换播放/暂停状态
+  if (playerStore.currentSong && playerStore.currentSong.id === song.id) {
+    console.log('切换当前歌曲播放状态');
+    playerStore.togglePlay();
+  } else {
+    // 如果是新歌曲，则播放它
+    console.log('播放新歌曲');
+    playSong(song);
+  }
+};
 const route = useRoute();
 const router = useRouter();
 // 来源路由
@@ -312,7 +328,7 @@ const onClickSong=(details)=>{
       
       <div class="song-list">
         <div class="song-item" v-for="(song, index) in songs" :key="song.id"
-         :class="{ 'toggle-active': isCurrentSong(index) }"  @click="playSong(song)"
+         :class="{ 'toggle-active': isExactSameSong(song) }"  @click="playSong(song)"
         >
           <div class="index">{{ index + 1 }}</div>
           <div class="song-info">
@@ -323,12 +339,14 @@ const onClickSong=(details)=>{
             </div>
           </div>
           <div class="song-actions">
-            <van-icon  :name="isCurrentPlaying(song) ? 'pause-circle-o' : 'play-circle-o'"
-  @click.stop="playSong(song)" />
+            <van-icon  
+              :name="isCurrentPlaying(song) ? 'pause-circle-o' : 'play-circle-o'"
+              @click.stop="handlePlayClick(song)" 
+            />
             <van-popover v-model:show="song.show" :actions="songActions" @select="onSongSelect">
-  <template #reference>
-            <van-icon name="ellipsis" @click.stop="onClickSong(song)"/>
-  </template>
+              <template #reference>
+                <van-icon name="ellipsis" @click.stop="onClickSong(song)"/>
+              </template>
             </van-popover>
           </div>
         </div>
