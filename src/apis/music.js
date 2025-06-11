@@ -1,6 +1,33 @@
 import { get } from '../utils/request'
 
 /**
+ * 获取歌曲详情
+ * @param {Object} params 参数
+ * @param {string|number|Array<string|number>} params.ids 歌曲ID，可以是单个ID或ID数组
+ * @param {number} [params.timestamp=Date.now()] 时间戳，用于防止缓存
+ * @returns {Promise} 包含歌曲详情的Promise对象
+ * @example
+ * // 获取单首歌曲详情
+ * getSongDetails({ ids: 123456 })
+ * 
+ * // 获取多首歌曲详情
+ * getSongDetails({ ids: [123456, 789012] })
+ */
+export function getSongDetails(params = {}) {
+  // 处理ids参数，确保是逗号分隔的字符串
+  const ids = Array.isArray(params.ids) 
+    ? params.ids.join(',') 
+    : String(params.ids)
+    
+  return get('/song/detail', { 
+    ...params, 
+    ids,
+    timestamp: params.timestamp || Date.now()
+  })
+}
+
+
+/**
  * 获取默认搜索关键词
  * @returns {Promise} 默认搜索关键词信息
  */

@@ -177,7 +177,7 @@ const formatDate = (timestamp) => {
 // 播放歌曲
 const playSong = (song) => {
   router.push({
-    path: '/player',
+    path: '/song-details',
     query: {
       id: song.id
     }
